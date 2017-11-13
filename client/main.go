@@ -6,6 +6,7 @@ import (
 
     "golang.org/x/net/context"
     "google.golang.org/grpc"
+    "google.golang.org/grpc/credentials"
 
     pb "poc-grpc-protobuf-go/customer"
 )
@@ -46,8 +47,13 @@ func getCustomers(client pb.CustomerClient, filter *pb.CustomerFilter) {
 }
 
 func main() {
+    creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
+    if err != nil {
+      log.Fatalf("could not load tls cert: %s", err)
+    }
+
     // Set up a connection to the RPC server
-    conn, err := grpc.Dial(address, grpc.WithInsecure())
+    conn, err := grpc.Dial(address, grpc.WithTransportCredentials(creds))
     if err != nil {
         log.Fatal("did not connect: %v", err)
     }
@@ -56,7 +62,7 @@ func main() {
     client := pb.NewCustomerClient(conn)
 
     customer := &pb.CustomerRequest{
-        Id:    101,
+        Id:    103,
         Name:  "Shiju Varghese",
         Email: "shiju@xyz.com",
         Phone: "732-757-2923",

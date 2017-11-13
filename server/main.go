@@ -7,8 +7,9 @@ import (
 
     "golang.org/x/net/context"
     "google.golang.org/grpc"
+    "google.golang.org/grpc/credentials"
 
-    pb "poc-grpc-protobuf-go/customer"
+    pb "poc-grpc-protobuf-go/customer"    
 )
 
 const (
@@ -47,8 +48,18 @@ func main() {
         log.Fatal("failed to listen: %v", err)
     }
 
-    //Create a new grpc server
-    s := grpc.NewServer()
+    creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
+    if err != nil {
+      log.Fatalf("could not load TLS keys: %s", err)
+    }
+
+    opts := []grpc.ServerOption{grpc.Creds(creds)}
+
+    s := grpc.NewServer(opts...)
+
     pb.RegisterCustomerServer(s, &server{})
-    s.Serve(lis)
+    
+    if err := s.Serve(lis); err != nil {
+        log.Fatalf("failed to serve: %s", err)
+    }
 }
