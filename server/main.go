@@ -1,6 +1,7 @@
 package main
 
 import (
+    "fmt"
     "log"
     "net"
     "strings"
@@ -8,12 +9,16 @@ import (
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     "google.golang.org/grpc/credentials"
+    "google.golang.org/grpc/metadata"    
 
     pb "poc-grpc-protobuf-go/customer"    
 )
 
+type contextKey int
+
 const (
     port = ":50051"
+    clientIDKey contextKey = iota
 )
 
 // server is used to implement customer.CustomerServer.
@@ -42,6 +47,41 @@ func (s *server) GetCustomers(filter *pb.CustomerFilter, stream pb.Customer_GetC
     return nil
 }
 
+func authenticateClient(ctx context.Context, s *pb.CustomerServer) (string, error) {
+    if md, ok := metadata.FromIncomingContext(ctx); ok {
+      clientLogin := strings.Join(md["login"], "")
+      clientPassword := strings.Join(md["password"], "")
+
+      if clientLogin != "john" {
+        return "", fmt.Errorf("unknown user %s", clientLogin)
+      }
+
+      if clientPassword != "doe" {
+        return "", fmt.Errorf("bad password %s", clientPassword)
+      }
+
+      log.Printf("authenticated client: %s", clientLogin)
+      return "42", nil
+    }
+
+    return "", fmt.Errorf("missing credentials")
+}
+
+func unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+    s, ok := info.Server.(*pb.CustomerServer)
+    if !ok {
+        return nil, fmt.Errorf("unable to cast server")
+    }
+    
+    clientID, err := authenticateClient(ctx, s)
+    if err != nil {
+        return nil, err
+    }
+
+    ctx = context.WithValue(ctx, clientIDKey, clientID)
+    return handler(ctx, req)
+}
+
 func main() {
     lis, err := net.Listen("tcp", port)
     if err != nil {
@@ -53,7 +93,7 @@ func main() {
       log.Fatalf("could not load TLS keys: %s", err)
     }
 
-    opts := []grpc.ServerOption{grpc.Creds(creds)}
+    opts := []grpc.ServerOption{grpc.Creds(creds), grpc.UnaryInterceptor(unaryInterceptor)}
 
     s := grpc.NewServer(opts...)
 
