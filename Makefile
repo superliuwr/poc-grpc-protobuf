@@ -1,5 +1,5 @@
-SERVER_OUT := "server.bin"
-CLIENT_OUT := "client.bin"
+SERVER_OUT := "bin/server"
+CLIENT_OUT := "bin/client"
 API_OUT := "customer/customer.pb.go"
 PKG := "poc-grpc-protobuf-go"
 SERVER_PKG_BUILD := "${PKG}/server"
