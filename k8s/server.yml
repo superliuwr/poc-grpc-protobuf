@@ -1,0 +1,40 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: deployment-server
+  labels:
+    app: server
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      containers:
+      - name: server
+        image: local/grpc-server
+        imagePullPolicy: Never
+        ports:
+        - name: server-grpc
+          containerPort: 7777
+        - name: server-http
+          containerPort: 7778
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-server
+spec:
+  selector:
+    app: server
+  ports:
+  - port: 7777
+    name: server-grpc
+    targetPort: server-grpc
+  - port: 7778
+    name: server-http
+    targetPort: server-http

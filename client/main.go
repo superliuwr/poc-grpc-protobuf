@@ -12,7 +12,7 @@ import (
 )
 
 const (
-    address = "localhost:7777"
+    address = "service-server:7777"
 )
 
 // Authentication holds the login/password
@@ -132,5 +132,4 @@ func main() {
     //Filter with an empty Keyword
     filter := &pb.CustomerFilter{Keyword: ""}
     getCustomers(client, filter)
-
 }
