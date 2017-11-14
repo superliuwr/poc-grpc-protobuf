@@ -1,0 +1,8 @@
+FROM iron/go
+
+WORKDIR /app
+
+COPY ./bin/client /app/
+COPY ./cert/server.crt /app/cert/
+
+CMD ["./client"]

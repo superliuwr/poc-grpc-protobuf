@@ -1,0 +1,13 @@
+version: '2'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - '7777'
+      - '7778'
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
