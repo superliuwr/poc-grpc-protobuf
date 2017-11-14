@@ -12,7 +12,7 @@ import (
 )
 
 const (
-    address = "localhost:50051"
+    address = "localhost:7777"
 )
 
 // Authentication holds the login/password
@@ -66,7 +66,7 @@ func getCustomers(client pb.CustomerClient, filter *pb.CustomerFilter) {
 }
 
 func main() {
-    creds, err := credentials.NewClientTLSFromFile("../cert/server.crt", "")
+    creds, err := credentials.NewClientTLSFromFile("cert/server.crt", "")
     if err != nil {
       log.Fatalf("could not load tls cert: %s", err)
     }

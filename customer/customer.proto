@@ -1,13 +1,24 @@
 syntax = "proto3";
 package customer;
 
+import "google/api/annotations.proto";
+
 // The Customer sercie definition
 service Customer {
     // Get all Customers with filter - A server-to-client streaming RPC.
-    rpc GetCustomers(CustomerFilter) returns (stream CustomerRequest) {}
+    rpc GetCustomers(CustomerFilter) returns (stream CustomerRequest) {
+        option (google.api.http) = {
+            get: "/v1/customers/{keyword}"
+        };
+    }
 
     // Create a new Customer - A simple RPC
-    rpc CreateCustomer (CustomerRequest) returns (CustomerResponse) {}
+    rpc CreateCustomer (CustomerRequest) returns (CustomerResponse) {
+        option (google.api.http) = {
+            put: "/v1/customers"
+            body: "*"
+        };
+    }
 }
 
 message CustomerRequest {

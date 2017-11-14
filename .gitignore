@@ -1,3 +1,5 @@
 customer/customer.pb.go
+customer/customer.pb.gw.go
+customer/customer.swagger.json
 
 /bin

@@ -13,10 +13,25 @@ all: build_server build_client
 api/customer.pb.go: customer/customer.proto
 	@protoc -I customer/ \
 		-I${GOPATH}/src \
+		-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
 		--go_out=plugins=grpc:customer \
 		customer/customer.proto
 
-api: api/customer.pb.go ## Auto-generate grpc go sources
+api/customer.pb.gw.go: customer/customer.proto
+	@protoc -I customer/ \
+		-I${GOPATH}/src \
+		-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+		--grpc-gateway_out=logtostderr=true:customer \
+		customer/customer.proto
+
+api/customer.swagger.json: customer/customer.proto
+	@protoc -I customer/ \
+		-I${GOPATH}/src \
+		-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+		--swagger_out=logtostderr=true:customer \
+		customer/customer.proto
+
+api: api/customer.pb.go api/customer.pb.gw.go api/customer.swagger.json
 
 dep: ## Get the dependencies
 	@go get -v -d ./...

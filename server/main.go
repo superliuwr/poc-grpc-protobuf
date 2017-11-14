@@ -4,14 +4,16 @@ import (
     "fmt"
     "log"
     "net"
+    "net/http"    
     "strings"
 
+    "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     "google.golang.org/grpc/credentials"
     "google.golang.org/grpc/metadata"    
 
-    pb "poc-grpc-protobuf-go/customer"    
+    pb "poc-grpc-protobuf-go/customer"
 )
 
 type contextKey int
@@ -47,17 +49,24 @@ func (s *server) GetCustomers(filter *pb.CustomerFilter, stream pb.Customer_GetC
     return nil
 }
 
+func credMatcher(headerName string) (mdName string, ok bool) {
+    if headerName == "Login" || headerName == "Password" {
+        return headerName, true
+    }
+    return "", false
+}
+
 func authenticateClient(ctx context.Context, s *server) (string, error) {
     if md, ok := metadata.FromIncomingContext(ctx); ok {
       clientLogin := strings.Join(md["login"], "")
       clientPassword := strings.Join(md["password"], "")
 
       if clientLogin != "john" {
-        return "", fmt.Errorf("unknown user %s", clientLogin)
+            return "", fmt.Errorf("unknown user %s", clientLogin)
       }
 
       if clientPassword != "doe" {
-        return "", fmt.Errorf("bad password %s", clientPassword)
+            return "", fmt.Errorf("bad password %s", clientPassword)
       }
 
       log.Printf("authenticated client: %s", clientLogin)
@@ -82,15 +91,15 @@ func unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
     return handler(ctx, req)
 }
 
-func main() {
-    lis, err := net.Listen("tcp", port)
+func startGRPCServer(address, certFile, keyFile string) error {
+    lis, err := net.Listen("tcp", address)
     if err != nil {
-        log.Fatal("failed to listen: %v", err)
+        return fmt.Errorf("failed to listen: %v", err)
     }
 
-    creds, err := credentials.NewServerTLSFromFile("../cert/server.crt", "../cert/server.key")
+    creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
     if err != nil {
-      log.Fatalf("could not load TLS keys: %s", err)
+        return fmt.Errorf("could not load TLS keys: %s", err)
     }
 
     opts := []grpc.ServerOption{grpc.Creds(creds), grpc.UnaryInterceptor(unaryInterceptor)}
@@ -100,6 +109,57 @@ func main() {
     pb.RegisterCustomerServer(s, &server{})
     
     if err := s.Serve(lis); err != nil {
-        log.Fatalf("failed to serve: %s", err)
+        return fmt.Errorf("failed to serve: %s", err)
     }
+
+    return nil
+}
+
+func startRESTServer(address, grpcAddress, certFile string) error {
+    ctx := context.Background()
+    ctx, cancel := context.WithCancel(ctx)
+    defer cancel()
+
+    mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(credMatcher))
+    creds, err := credentials.NewClientTLSFromFile(certFile, "")
+    if err != nil {
+        return fmt.Errorf("could not load TLS certificate: %s", err)
+    }
+
+    opts := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
+
+    err = pb.RegisterCustomerHandlerFromEndpoint(ctx, mux, grpcAddress, opts)
+    if err != nil {
+        return fmt.Errorf("could not register service Ping: %s", err)
+    }
+
+    log.Printf("starting HTTP/1.1 REST server on %s", address)
+
+    http.ListenAndServe(address, mux)
+
+    return nil
+}
+
+func main() {
+    grpcAddress := fmt.Sprintf("%s:%d", "localhost", 7777)
+    restAddress := fmt.Sprintf("%s:%d", "localhost", 7778)
+    certFile := "cert/server.crt"
+    keyFile := "cert/server.key"
+
+    go func() {
+        err := startGRPCServer(grpcAddress, certFile, keyFile)
+        if err != nil {
+            log.Fatalf("failed to start gRPC server: %s", err)
+        }
+    }()
+
+    go func() {
+        err := startRESTServer(restAddress, grpcAddress, certFile)
+        if err != nil {
+            log.Fatalf("failed to start gRPC server: %s", err)
+        }
+    }()
+
+    log.Printf("Entering infinite loop")
+    select {}
 }
